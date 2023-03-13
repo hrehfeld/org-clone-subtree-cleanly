@@ -1,4 +1,5 @@
 ;;; org-clone-subtree-cleanly.el --- Clone orgmode subtrees without duplicating IDs
+;;; -*- lexical-binding: t; -*-
 ;;; Author: Hauke Rehfeld <emacs@haukerehfeld.de>
 ;;; Version: 0.1
 ;;; Package-Requires: ((emacs "24.1") org)
