@@ -10,6 +10,7 @@
 ;;; Code:
 (require 'org)
 
+;;;###autoload
 (defun org-clone-subtree-cleanly ()
   "Clone a subtree, but delete all ID properties to avoid duplicate IDs."
   (interactive)
