@@ -15,9 +15,10 @@
   "Clone a subtree, but delete all ID properties to avoid duplicate IDs."
   (interactive)
   (org-copy-subtree)
-  (org-end-of-subtree)
-  (org-paste-subtree)
-  (org-map-entries (lambda () (org-delete-property "ID")) nil 'tree))
+  (org-back-to-heading)
+  (org-yank)
+  (org-map-entries (lambda () (org-delete-property "ID")) nil 'tree)
+  )
 
 (provide 'org-clone-subtree-cleanly)
 ;;; org-clone-subtree-cleanly.el ends here
