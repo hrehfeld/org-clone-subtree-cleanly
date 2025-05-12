@@ -136,26 +136,30 @@
 
 
 (defun org-clone-subtree-cleanly-clock-split (clock split-time)
+  "Split the time range in CLOCK at SPLIT-TIME, returning `(list before-clock after-clock)'.
+
+Either of the returned clocks can be nil if all of CLOCK is
+before or after SPLIT-TIME."
   (cl-assert (eq (org-element-type clock) 'clock) t "CLOCK must be an org-element of type clock")
   (cl-assert (eq (org-element-type split-time) 'timestamp) t "SPLIT-TIME must be an org-element of type timestamp")
   (cond
-     ;; split before clock
-     ((org-clone-subtree-cleanly--clock-or-timestamp< 'start split-time clock)
-      (list nil clock))
-     ;; split after clock
-     ((org-clone-subtree-cleanly--clock-or-timestamp< 'end clock split-time)
-      (list clock nil))
-     ;; split inside clock
-     (t
-      (list
-        (org-clone-subtree-cleanly--combine-clock
-         (org-element-property :value clock)
-         split-time
-          clock)
-        (org-clone-subtree-cleanly--combine-clock
-         split-time
-         (org-element-property :value clock)
-         clock)))))
+   ;; split before clock
+   ((org-clone-subtree-cleanly--clock-or-timestamp< 'start split-time clock)
+    (list nil clock))
+   ;; split after clock
+   ((org-clone-subtree-cleanly--clock-or-timestamp< 'end clock split-time)
+    (list clock nil))
+   ;; split inside clock
+   (t
+    (list
+     (org-clone-subtree-cleanly--combine-clock
+      (org-element-property :value clock)
+      split-time
+      clock)
+     (org-clone-subtree-cleanly--combine-clock
+      split-time
+      (org-element-property :value clock)
+      clock)))))
 
 ;; (org-clone-subtree-cleanly-clock-split
 ;;  (org-clone-subtree-cleanly--parse-clock "CLOCK: [2024-04-16 Tue 13:05]--[2024-04-16 Tu 14:09] => 0:09")
@@ -315,7 +319,8 @@ Return 'return if FN returns 'return for any heading."
             ;;(message "Line before changes: %s" (buffer-substring-no-properties (line-beginning-position) (line-end-position)))
           (goto-char (match-beginning 0))
           (when (eq (save-excursion (funcall fn)) 'return)
-            (setq return? t))
+            ;;(message "org-clone-subtree-cleanly-subtree-map-headings: found return")
+            (setq return? 'return))
           (goto-char heading-end)
           ;;(message "Line after changes: %s" (buffer-substring-no-properties (line-beginning-position) (line-end-position)))
           ))
@@ -323,19 +328,22 @@ Return 'return if FN returns 'return for any heading."
 
 (defun org-clone-subtree-cleanly-subtree-done? ()
   (interactive)
-  (eq (org-clone-subtree-cleanly-subtree-map-headings
-    (lambda ()
-      (when (or (not (org-get-todo-state)) (not (org-entry-is-done-p)))
-        'return)))
-      'return))
+  (not (eq (org-clone-subtree-cleanly-subtree-map-headings
+            (lambda ()
+              (when (and (org-get-todo-state) (not (org-entry-is-done-p)))
+                ;; stop iteration when a todo is found
+                ;;(message "org-clone-subtree-cleanly-subtree-done?: found todo. %S %S" (org-get-todo-state) (not (org-entry-is-done-p)))
+                'return)))
+           'return)))
 
 (defun org-clone-subtree-cleanly-subtree-kill-headings-without-clock-entries (&optional keep-todos?)
   (interactive current-prefix-arg)
   (org-clone-subtree-cleanly-subtree-map-headings
    (lambda ()
-     ;;(message "Line: %s" (buffer-substring-no-properties (line-beginning-position) (line-end-position)))
-     (unless (or (and keep-todos? (not (org-clone-subtree-cleanly-subtree-done?)))
-                 (org-clone-subtree-cleanly-subtree-has-clock-entries-p))
+     ;;(message "Line: %s (%S %S %S)" (buffer-substring-no-properties (line-beginning-position) (line-end-position)) (org-clone-subtree-cleanly-subtree-has-clock-entries-p) keep-todos? (not (org-clone-subtree-cleanly-subtree-done?)))
+     (unless (or (org-clone-subtree-cleanly-subtree-has-clock-entries-p)
+                 ;; optionally kill subtrees without todos
+                 (and keep-todos? (not (org-clone-subtree-cleanly-subtree-done?))))
        (org-cut-subtree)))
    ))
 
@@ -351,7 +359,8 @@ Cloned subtree will only contain non-DONE headings and headings with clock times
     (save-excursion
       (org-backward-heading-same-level 1)
       (save-excursion
-        (org-clone-subtree-cleanly-split-clocks split-time nil)))
+        (org-clone-subtree-cleanly-split-clocks split-time nil))
+      (org-clone-subtree-cleanly-subtree-kill-headings-without-clock-entries t))
     (save-excursion
       (org-clone-subtree-cleanly-split-clocks split-time t))
     (save-excursion
