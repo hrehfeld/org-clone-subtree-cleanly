@@ -91,16 +91,30 @@
     (setq time-b (org-element-property :value time-b))
     (cl-assert (eq (org-element-type time-b) 'timestamp) t "TIME-B must be an org-element of type timestamp"))
 
-  (cl-loop
-   for p in org-clone-subtree-cleanly--clock-properties
-   do
-   (let ((p (intern (format "%s-%s" p type))))
-     (let ((a (org-element-property p time-a))
-           (b (org-element-property p time-b)))
-       (cl-check-type a number-or-marker)
-       (cl-check-type b number-or-marker)
-       (when (not (eq a b))
-         (cl-return (< a b)))))))
+  (cl-labels ((safe-clock-property (key timestamp)
+                (let ((prop-value (org-element-property key timestamp))
+                      (default
+                       (cond ((member key '(:hour-start :hour-end
+                                            :minute-start :minute-end
+                                            :second-start :second-end))
+                              0)
+                             ((member key '(:year-start :year-end
+                                            :month-start :month-end
+                                            :day-start :day-end))
+                              1))))
+                  (or prop-value default))))
+
+    (cl-loop
+     for p in org-clone-subtree-cleanly--clock-properties
+     do
+     (let ((p (intern (format "%s-%s" p type))))
+       (let ((a (safe-clock-property p time-a))
+             (b (safe-clock-property p time-b)))
+         (message "org-clone-subtree-cleanly--clock-or-timestamp<: %S %S %S %S" (point) p time-a time-b)
+         (cl-check-type a number-or-marker t)
+         (cl-check-type b number-or-marker t)
+         (when (not (eq a b))
+           (cl-return (< a b))))))))
 ;; (org-clone-subtree-cleanly--clock-or-timestamp< 'start (org-clone-subtree-cleanly--parse-timestamp "[2024-04-16 Tue 13:05]") (org-clone-subtree-cleanly--parse-timestamp "[2024-04-16 Tue 13:06]"))
 
 (defun org-clone-subtree-cleanly-clock-intersection (clock start-inclusive end-inclusive)
